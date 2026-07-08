@@ -254,14 +254,37 @@ int mdns_service_update(DnssdDiscoveredService *service, DnsResourceRecord *rr, 
         service->until = until;
         service->rr->ttl = rr->ttl;
 
-        /* Update the 80% TTL maintenance event based on new record received
-         * from the network. RFC 6762 section 5.2  */
+        /* Restart the RFC 6762 §5.2 maintenance ladder from 80% on every genuine
+         * refresh, and robustly re-arm the timer. rr_ttl_state is otherwise only
+         * ever incremented (mdns_maintenance_query()), never wound back, so
+         * without this reset the state ratchets up to 100% even for a service
+         * that is continuously present: the terminal expiry revisit then fires
+         * prematurely (while the record is still cached, emitting no removal) and
+         * — since that branch does not reschedule — leaves the per-service
+         * one-shot timer permanently disabled. A service that later vanished
+         * without a goodbye would then never be reported "removed" in a timely
+         * way (only the browser-wide continuous query, backing off to once per
+         * hour, would eventually catch it). Use event_reset_time() rather than
+         * sd_event_source_set_time() so an already-fired one-shot source is
+         * re-enabled, not merely retimed. */
         if (service->schedule_event) {
+                service->rr_ttl_state = DNS_RECORD_TTL_STATE_80_PERCENT;
+
                 usec_t next_time = mdns_maintenance_next_time(
                         service->until, service->rr->ttl, DNS_RECORD_TTL_STATE_80_PERCENT);
                 usec_t jitter = mdns_maintenance_jitter(service->rr->ttl);
 
-                return sd_event_source_set_time(service->schedule_event, usec_add(next_time, jitter));
+                return event_reset_time(
+                                service->service_browser->manager->event,
+                                &service->schedule_event,
+                                CLOCK_BOOTTIME,
+                                usec_add(next_time, jitter),
+                                /* accuracy= */ 0,
+                                mdns_maintenance_query,
+                                service,
+                                /* priority= */ 0,
+                                "mdns-next-query-schedule",
+                                /* force_reset= */ true);
         }
 
         return 0;
