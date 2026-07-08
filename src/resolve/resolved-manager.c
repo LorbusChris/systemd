@@ -716,6 +716,25 @@ static int manager_dispatch_reload_signal(sd_event_source *s, const struct signa
         return 0;
 }
 
+static int manager_send_mdns_goodbyes(sd_event_source *s, void *userdata) {
+        Manager *m = ASSERT_PTR(userdata);
+        Link *l;
+
+        /* Send mDNS goodbye packets (RFC 6762 §10.1, records with TTL=0) for our
+         * published DNS-SD services before the daemon exits, so peers drop them
+         * immediately instead of waiting out the TTL. This runs as an sd-event
+         * exit handler, i.e. during SD_EVENT_EXITING while the event loop and
+         * sockets are still live: dns_scope_announce() deliberately no-ops once
+         * the loop is SD_EVENT_FINISHED, which is when the later manager_free() ->
+         * link_free() announce path runs, so that path never actually emits. */
+        HASHMAP_FOREACH(l, m->links) {
+                (void) dns_scope_announce(l->mdns_ipv4_scope, /* goodbye= */ true);
+                (void) dns_scope_announce(l->mdns_ipv6_scope, /* goodbye= */ true);
+        }
+
+        return 0;
+}
+
 int manager_new(Manager **ret) {
         _cleanup_(manager_freep) Manager *m = NULL;
         int r;
@@ -759,6 +778,13 @@ int manager_new(Manager **ret) {
                 return r;
 
         r = sd_event_set_signal_exit(m->event, true);
+        if (r < 0)
+                return r;
+
+        /* Emit mDNS goodbyes for our published DNS-SD services on the way out
+         * (dispatched during SD_EVENT_EXITING, before the loop and sockets are
+         * torn down). */
+        r = sd_event_add_exit(m->event, /* ret= */ NULL, manager_send_mdns_goodbyes, m);
         if (r < 0)
                 return r;
 
