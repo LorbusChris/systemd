@@ -27,12 +27,10 @@ enum DnsRecordTTLState {
 struct DnssdDiscoveredService {
         unsigned n_ref;
         DnsServiceBrowser *service_browser;
-        sd_event_source *schedule_event;
         DnsResourceRecord *rr;
         int family;
         int ifindex;
         usec_t until;
-        DnsRecordTTLState rr_ttl_state;
         DnsQuery *query;
         LIST_FIELDS(DnssdDiscoveredService, dns_services);
 };
@@ -44,7 +42,9 @@ struct DnsServiceBrowser {
         DnsQuestion *question_idna;
         DnsQuestion *question_utf8;
         uint64_t flags;
-        sd_event_source *schedule_event;
+        sd_event_source *schedule_event;      /* continuous browse query (RFC 6762 §5.2 backoff) */
+        sd_event_source *maintenance_event;   /* single TTL re-confirmation ladder for the whole RRset */
+        DnsRecordTTLState rr_ttl_state;
         usec_t delay;
         DnsResourceKey *key;
         int ifindex;
