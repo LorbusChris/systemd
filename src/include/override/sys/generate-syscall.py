@@ -4,13 +4,37 @@
 import functools
 import sys
 
-# We only generate numbers for a dozen or so syscalls
+# This list must cover every syscall that src/libc defines a DEFINE_SYSCALL_SHIM for: the shims
+# fall back to syscall(__NR_xxx, ...), and the build environment's kernel headers may predate any
+# of these syscalls (the oss-fuzz images do, for example), so the override header has to be able
+# to supply the numbers itself.
 SYSCALLS = [
+    'add_key',
+    'bpf',
     'fchmodat2',     # defined in glibc header since glibc-2.39
+    'fsconfig',
+    'fsmount',
+    'fsopen',
+    'get_mempolicy',
+    'ioprio_get',
+    'ioprio_set',
+    'kcmp',
     'kexec_file_load',
+    'keyctl',
+    'mount_setattr',
+    'move_mount',
+    'open_tree',
     'open_tree_attr',
+    'openat2',
+    'pidfd_open',
+    'pidfd_send_signal',
+    'pivot_root',
     'quotactl_fd',   # defined in glibc header since glibc-2.35
     'removexattrat',
+    'request_key',
+    'rt_tgsigqueueinfo',
+    'sched_setattr',
+    'set_mempolicy',
     'setxattrat',
 ]  # fmt: skip
 
