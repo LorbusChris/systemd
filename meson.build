@@ -1798,6 +1798,16 @@ userspace_c_args += ['-include', 'config.h']
 
 jinja2_cmdline = [meson_render_jinja2_py, config_h]
 
+# On glibc < 2.34, dlsym(), the pthread functions and the POSIX RT APIs live in libdl, libpthread
+# and librt rather than libc proper. The libc shims in src/libc resolve their symbols with
+# dlsym() and are compiled into everything, and libsystemd uses the pthread and RT APIs, so link
+# against those libraries wherever they are separate.
+foreach f, lib : {'dlsym': 'dl', 'pthread_once': 'pthread', 'shm_open': 'rt'}
+        if not cc.has_function(f)
+                userspace_c_ld_args += '-l' + lib
+        endif
+endforeach
+
 userspace = declare_dependency(
         compile_args : userspace_c_args,
         link_args : userspace_c_ld_args,
