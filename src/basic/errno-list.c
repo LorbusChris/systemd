@@ -24,7 +24,7 @@ int errno_from_name(const char *name) {
         return sc->id;
 }
 
-#ifdef __GLIBC__
+#if defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 32)) /* strerrorname_np() was added in glibc-2.32; can't use __GLIBC_PREREQ() here, it doesn't exist on musl */
 const char* errno_name_no_fallback(int id) {
         if (id == 0) /* To stay in line with our implementation below.  */
                 return NULL;
