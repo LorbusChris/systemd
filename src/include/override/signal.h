@@ -3,6 +3,15 @@
 
 #include_next <signal.h>        /* IWYU pragma: export */
 
+/* Defined since glibc-2.33. */
+#ifndef SEGV_MTEAERR
+#define SEGV_MTEAERR 8
+#endif
+
+#ifndef SEGV_MTESERR
+#define SEGV_MTESERR 9
+#endif
+
 /* Defined since glibc-2.39. */
 #ifndef SEGV_CPERR
 #define SEGV_CPERR 10
