@@ -5,3 +5,8 @@
 DEFINE_SYSCALL_SHIM(pivot_root, int,
                     const char *, new_root,
                     const char *, put_old)
+
+DEFINE_SYSCALL_SHIM(close_range, int,
+                    unsigned int, first,
+                    unsigned int, last,
+                    int, flags)

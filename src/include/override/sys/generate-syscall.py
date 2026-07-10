@@ -11,6 +11,7 @@ import sys
 SYSCALLS = [
     'add_key',
     'bpf',
+    'close_range',   # defined in glibc header since glibc-2.34
     'fchmodat2',     # defined in glibc header since glibc-2.39
     'fsconfig',
     'fsmount',
